@@ -1,3 +1,6 @@
+import { CertificateChain } from "./certificate/index.js";
+import { BinaryReader } from "./utils.js";
+
 /** Device instance for CDM */
 export class Device {
     /**
@@ -13,6 +16,11 @@ export class Device {
         public group_certificate: Uint8Array,
         public group_key: Uint8Array = new Uint8Array(0)
     ) {}
+
+    /** Decoded certificate chain */
+    get chain(): CertificateChain {
+        return new CertificateChain(new BinaryReader(this.group_certificate));
+    }
 
     /** Get device instance from `.prd` file */
     static fromPrd(data: Uint8Array): Device {

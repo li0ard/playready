@@ -1,28 +1,26 @@
+import { bytesToNumberBE } from "@noble/ciphers/utils.js";
+
 export class BinaryReader {
     public offset = 0;
     public length: number;
     private raw: Uint8Array;
-    private rdr: DataView;
 
     constructor(data: Uint8Array) {
         this.offset = 0;
         this.length = data.length;
         this.raw = new Uint8Array(data);
-        this.rdr = new DataView(data.buffer, data.byteOffset, data.byteLength);
     }
 
-    getUint8(): number { return this.rdr.getUint8(this.offset++); }
+    getUint8(): number { return this.raw[this.offset++]; }
 
     getUint16(): number {
-        const result = this.rdr.getUint16(this.offset);
-        this.offset += 2;
-        return result;
+        const result = bytesToNumberBE(this.raw.subarray(this.offset, this.offset += 2));
+        return Number(result);
     }
 
     getUint32(): number {
-        const result = this.rdr.getUint32(this.offset);
-        this.offset += 4;
-        return result;
+        const result = bytesToNumberBE(this.raw.subarray(this.offset, this.offset += 4));
+        return Number(result);
     }
 
     getBytes(size: number): Uint8Array {
@@ -30,6 +28,10 @@ export class BinaryReader {
         this.offset += size;
         return result;
     }
+
+    hasRemaining(): boolean { return this.offset < this.length; }
+
+    slice(start?: number, end?: number): Uint8Array { return this.raw.slice(start, end); }
 }
 
 export const xor = (a: Uint8Array, b: Uint8Array): Uint8Array => {

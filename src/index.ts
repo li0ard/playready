@@ -1,13 +1,13 @@
-import { bytesToNumberBE, concatBytes, numberToBytesBE, randomBytes } from "@noble/curves/utils.js";
-import { ECCKey, XMLKey, ElGamal } from "./crypto/index.js";
+import { bytesToNumberBE, randomBytes } from "@noble/curves/utils.js";
+import { ECCKey, XMLKey } from "./crypto/index.js";
 import { Device } from "./device.js";
-import { cbc, ecb } from "@noble/ciphers/aes.js";
+import { ecb } from "@noble/ciphers/aes.js";
 import { parse as parseDOM } from "node-html-parser";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { XMRLicense } from "./license/xmr_license.js";
 import { xor, base64ToBytes, bytesToBase64 } from "./utils.js";
 import { Key } from "./key.js";
-import { CipherType, LA_TEMP, RGB_MAGIC, SIGNEDINFO_TEMP, SOAP_TEMP, WMRM_SERVER_KEY } from "./const.js";
+import { CipherType, ENCRYPTED_CHAIN_TEMP, LA_TEMP, RGB_MAGIC, SIGNEDINFO_TEMP, SOAP_TEMP } from "./const.js";
 
 /** PlayReady Content Decryption Module (CDM) instance */
 export class CDM {
@@ -23,25 +23,6 @@ export class CDM {
         this.certificate_chain = device.group_certificate;
         this.encryption_key = new ECCKey(bytesToNumberBE(device.encryption_key.subarray(0,32)));
         this.signing_key = new ECCKey(bytesToNumberBE(device.signing_key.subarray(0,32)));
-    }
-
-    /** Generate cipher key from XML key */
-    private getKeyCipher(xmlkey: XMLKey): Uint8Array {
-        const encrypted = ElGamal.encrypt(xmlkey.point, WMRM_SERVER_KEY);
-
-        return concatBytes(
-            numberToBytesBE(encrypted.point1.x, 32), numberToBytesBE(encrypted.point1.y, 32),
-            numberToBytesBE(encrypted.point2.x, 32), numberToBytesBE(encrypted.point2.y, 32)
-        );
-    }
-
-    /** Generate cipher data from XML key */
-    private getDataCipher(xmlkey: XMLKey): Uint8Array {
-        const b64CertificateChain = bytesToBase64(this.certificate_chain);
-        const body = `<Data><CertificateChains><CertificateChain>${b64CertificateChain}</CertificateChain></CertificateChains><Features><Feature Name="AESCBC">""</Feature><REE><AESCBCS></AESCBCS></REE></Features></Data>`;
-        const ciphertext = cbc(xmlkey.aes_key, xmlkey.aes_iv).encrypt(new TextEncoder().encode(body));
-
-        return concatBytes(xmlkey.aes_iv, ciphertext);
     }
 
     /**
@@ -66,6 +47,7 @@ export class CDM {
         }
 
         const clientTime = Math.floor(Date.now() / 1000);
+        const encryptedChain = xmlkey.encrypt(ENCRYPTED_CHAIN_TEMP.replace("{certificate_chain}", bytesToBase64(this.certificate_chain)));
         const laContent = LA_TEMP
             .replace("{protocol_version}", protocol_version.toString())
             .replace("{content_header}", wrmHeader)
@@ -73,8 +55,8 @@ export class CDM {
             .replace("{rev_lists}", revLists)
             .replace("{nonce}", bytesToBase64(randomBytes(16)))
             .replace("{clientTime}", clientTime.toString())
-            .replace("{key_cipher}", bytesToBase64(this.getKeyCipher(xmlkey)))
-            .replace("{data_cipher}", bytesToBase64(this.getDataCipher(xmlkey)));
+            .replace("{key_cipher}", bytesToBase64(xmlkey.encryptedWithWMRM))
+            .replace("{data_cipher}", bytesToBase64(encryptedChain));
 
         const signedInfo = SIGNEDINFO_TEMP
             .replace("{digest_value}", bytesToBase64(sha256(new TextEncoder().encode(laContent))));

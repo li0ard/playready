@@ -46,6 +46,18 @@ export const RGB_MAGIC: Readonly<Uint8Array> = new Uint8Array([0x7e, 0xe9, 0xed,
 
 // Templates
 
+export const ENCRYPTED_CHAIN_TEMP = (
+    `<Data>` +
+        `<CertificateChains>` +
+            `<CertificateChain>{certificate_chain}</CertificateChain>` +
+        `</CertificateChains>` +
+        `<Features>` +
+            `<Feature Name="AESCBC">""</Feature>` +
+            `<REE><AESCBCS></AESCBCS></REE>` +
+        `</Features>` +
+    `</Data>`
+);
+
 export const SIGNEDINFO_TEMP = (
     `<SignedInfo xmlns="http://www.w3.org/2000/09/xmldsig#">` +
         `<CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"></CanonicalizationMethod>` +
